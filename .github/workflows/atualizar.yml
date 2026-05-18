@@ -1,0 +1,36 @@
+name: Atualizar dashboard de cadastro
+
+on:
+  schedule:
+    - cron: '0 9 * * *'
+  workflow_dispatch:
+
+jobs:
+  atualizar-dados:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout do repositório
+        uses: actions/checkout@v4
+
+      - name: Instalar Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Rodar busca de dados no Odoo
+        env:
+          ODOO_URL:      ${{ secrets.ODOO_URL }}
+          ODOO_DB:       ${{ secrets.ODOO_DB }}
+          ODOO_USERNAME: ${{ secrets.ODOO_USERNAME }}
+          ODOO_PASSWORD: ${{ secrets.ODOO_PASSWORD }}
+        run: python buscar_dados.py
+
+      - name: Commit do JSON atualizado
+        run: |
+          git config --local user.email "actions@github.com"
+          git config --local user.name "GitHub Actions"
+          git add dados.json
+          git diff --staged --quiet || git commit -m "atualiza dados.json [auto]"
+          git push
