@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Dashboard Entradas</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f5f4f0;color:#1a1a18;padding:1.5rem;}
+.header{margin-bottom:1.5rem;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;}
+.header h1{font-size:20px;font-weight:500;}.header p{font-size:13px;color:#73726c;margin-top:3px;}
+.badge{font-size:11px;background:#E1F5EE;color:#085041;padding:4px 10px;border-radius:20px;}
+.badge.err{background:#FAECE7;color:#712B13;}
+.filters{background:#fff;border-radius:12px;border:0.5px solid rgba(0,0,0,.1);padding:1rem 1.25rem;margin-bottom:1.5rem;display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;}
+@media(max-width:700px){.filters{grid-template-columns:1fr 1fr;}}
+.fg label{display:block;font-size:11px;color:#73726c;margin-bottom:4px;font-weight:500;letter-spacing:.04em;text-transform:uppercase;}
+.fg select{width:100%;padding:8px 10px;border-radius:8px;border:0.5px solid rgba(0,0,0,.2);background:#fff;font-size:13px;color:#1a1a18;cursor:pointer;}
+.stitle{font-size:11px;font-weight:500;color:#888780;letter-spacing:.06em;text-transform:uppercase;margin:0 0 10px;}
+.mgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:10px;}
+.metric{background:#ebebeb;border-radius:8px;padding:12px 14px;}
+.metric .val{font-size:26px;font-weight:500;color:#1a1a18;line-height:1;}
+.metric .lbl{font-size:11px;color:#73726c;margin-top:4px;}
+.metric .sub{font-size:11px;color:#888780;margin-top:2px;}
+.pgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:1.5rem;}
+.pc{background:#fff;border:0.5px solid rgba(0,0,0,.1);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:10px;}
+.pc .ico{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.pc .pv{font-size:20px;font-weight:500;color:#1a1a18;line-height:1;}
+.pc .pl{font-size:11px;color:#73726c;display:block;}
+.pc .ps{font-size:11px;color:#888780;display:block;margin-top:2px;}
+.card{background:#fff;border:0.5px solid rgba(0,0,0,.1);border-radius:12px;padding:1rem 1.25rem;margin-bottom:1rem;}
+.ctitle{font-size:13px;font-weight:500;color:#73726c;margin:0 0 .75rem;}
+.leg{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:8px;}
+.li{display:flex;align-items:center;gap:5px;font-size:12px;color:#73726c;}
+.lsq{width:10px;height:10px;border-radius:2px;flex-shrink:0;}
+.brow{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.blbl{font-size:12px;color:#1a1a18;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0;}
+.btrack{flex:1;background:#f1efe8;border-radius:3px;height:7px;}
+.bfill{height:100%;border-radius:3px;}
+.bval{width:40px;text-align:right;font-size:12px;color:#73726c;flex-shrink:0;}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+@media(max-width:600px){.two{grid-template-columns:1fr;}}
+.tabs{display:flex;gap:4px;margin-bottom:1rem;}
+.tab{font-size:12px;padding:5px 14px;border-radius:8px;border:0.5px solid rgba(0,0,0,.2);background:transparent;color:#73726c;cursor:pointer;}
+.tab.on{background:#f1efe8;color:#1a1a18;font-weight:500;}
+.loading{text-align:center;padding:3rem;color:#73726c;font-size:14px;}
+.analise-card{background:#fff;border:0.5px solid rgba(0,0,0,.1);border-radius:12px;padding:1rem 1.25rem;margin-bottom:1rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;}
+.analise-info{flex:1;min-width:180px;}
+.analise-title{font-size:12px;font-weight:500;color:#73726c;margin-bottom:4px;}
+.analise-val{font-size:22px;font-weight:500;color:#1a1a18;line-height:1;}
+.analise-sub{font-size:12px;color:#888780;margin-top:3px;}
+.analise-badge{font-size:12px;font-weight:500;padding:4px 12px;border-radius:20px;white-space:nowrap;}
+.badge-ok{background:#E1F5EE;color:#085041;}
+.badge-low{background:#FAEEDA;color:#633806;}
+.badge-high{background:#FAECE7;color:#712B13;}
+.analise-bar-wrap{width:100%;height:6px;background:#f1efe8;border-radius:3px;margin-top:8px;overflow:hidden;}
+.analise-bar{height:100%;border-radius:3px;transition:width .4s;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>Dashboard de Dossies</h1>
+    <p id="subtitulo">Carregando dados...</p>
+  </div>
+  <span class="badge" id="badge">&#9679; Odoo XML-RPC</span>
+</div>
+
+<div id="loading" class="loading">Carregando dados.json...</div>
+<div id="app" style="display:none;">
+
+<div class="filters">
+  <div class="fg"><label>Grupo</label><select id="fGrupo" onchange="onGrupo()"><option value="">Todos os grupos</option></select></div>
+  <div class="fg"><label>Projeto</label><select id="fProjeto" onchange="onProjeto()"><option value="">Todos os projetos</option></select></div>
+  <div class="fg"><label>Carteira de metas</label><select id="fCarteira" onchange="render()"><option value="">Todas as carteiras</option></select></div>
+  <div class="fg"><label>Mes de criacao</label><select id="fMes" onchange="render()"><option value="">Todos os meses</option></select></div>
+</div>
+
+<p class="stitle">Resumo</p>
+<div class="mgrid">
+  <div class="metric"><div class="val" id="mTot">-</div><div class="lbl">total de dossies</div><div class="sub" id="mTotSub"></div></div>
+</div>
+<div class="mgrid" style="margin-bottom:1.5rem;">
+  <div class="metric" style="background:#E6F1FB;"><div class="val" id="cHoje" style="font-size:22px;">-</div><div class="lbl" style="color:#185FA5;font-weight:500;">cadastrados hoje</div><div class="sub" id="cHojeSub"></div></div>
+  <div class="metric" style="background:#E1F5EE;"><div class="val" id="cSemana" style="font-size:22px;">-</div><div class="lbl" style="color:#0F6E56;font-weight:500;">semana atual</div><div class="sub" id="cSemanaSub"></div></div>
+  <div class="metric" style="background:#FAEEDA;"><div class="val" id="cMesAtual" style="font-size:22px;">-</div><div class="lbl" style="color:#854F0B;font-weight:500;">mes atual</div><div class="sub" id="cMesAtualSub"></div></div>
+</div>
+<div class="pgrid">
+  <div class="pc"><div class="ico" style="background:#E6F1FB;"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="11" rx="2" stroke="#185FA5" stroke-width="1.2"/><path d="M5 1v3M11 1v3M2 7h12" stroke="#185FA5" stroke-width="1.2" stroke-linecap="round"/></svg></div><div><div class="pv" id="pDia">-</div><span class="pl">por dia</span><span class="ps" id="pDiaSub"></span></div></div>
+  <div class="pc"><div class="ico" style="background:#E1F5EE;"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="11" rx="2" stroke="#0F6E56" stroke-width="1.2"/><path d="M5 1v3M11 1v3M2 7h12" stroke="#0F6E56" stroke-width="1.2" stroke-linecap="round"/></svg></div><div><div class="pv" id="pSem">-</div><span class="pl">por semana</span><span class="ps" id="pSemSub"></span></div></div>
+  <div class="pc"><div class="ico" style="background:#FAEEDA;"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="11" rx="2" stroke="#854F0B" stroke-width="1.2"/><path d="M5 1v3M11 1v3M2 7h12" stroke="#854F0B" stroke-width="1.2" stroke-linecap="round"/><circle cx="8" cy="11" r="1.5" fill="#854F0B"/></svg></div><div><div class="pv" id="pMes">-</div><span class="pl">por mes</span><span class="ps" id="pMesSub"></span></div></div>
+  <div class="pc"><div class="ico" style="background:#EEEDFE;"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="11" rx="2" stroke="#534AB7" stroke-width="1.2"/><path d="M5 1v3M11 1v3M2 7h12" stroke="#534AB7" stroke-width="1.2" stroke-linecap="round"/></svg></div><div><div class="pv" id="pAno">-</div><span class="pl">por ano</span><span class="ps" id="pAnoSub"></span></div></div>
+</div>
+
+
+<div class="card" style="margin-bottom:1rem;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;flex-wrap:wrap;gap:8px;">
+    <p class="ctitle" style="margin:0;">Criados por dia — mes vigente</p>
+    <span style="font-size:11px;color:#888780;" id="grafMesLabel"></span>
+  </div>
+  <div style="position:relative;width:100%;height:180px;">
+    <canvas id="cDiaMes" role="img" aria-label="Grafico de casos criados por dia no mes vigente">Casos criados por dia no mes atual.</canvas>
+  </div>
+</div>
+
+<div class="card" style="margin-bottom:1rem;">
+  <p class="ctitle">Analise de entradas por mes</p>
+  <div id="anLinhas"></div>
+</div>
+
+<div class="two">
+  <div class="card"><p class="ctitle">Casos por projeto</p><div id="bProjeto"></div></div>
+  <div class="card"><p class="ctitle">Top UFs</p><div id="bUF"></div></div>
+</div>
+
+<p class="stitle">Objetos</p>
+<div class="card">
+  <p class="ctitle">Objetos mais frequentes</p>
+  <div class="tabs">
+    <button class="tab on" onclick="setObjTab(10,this)">Top 10</button>
+    <button class="tab" onclick="setObjTab(20,this)">Top 20</button>
+    <button class="tab" onclick="setObjTab(9999,this)">Todos</button>
+  </div>
+  <div id="bObj"></div>
+</div>
+
+</div><!-- #app -->
+
+<script>
+var ROWS=[], HIER={}, objTop=10;
+var GCOL={Santander:"#378ADD",Gol:"#1D9E75",Bradesco:"#EF9F27",Cielo:"#D85A30",Mercantil:"#7F77DD"};
+var MES_NOMES={"2026-01":"Janeiro/2026","2026-02":"Fevereiro/2026","2026-03":"Marco/2026","2026-04":"Abril/2026","2026-05":"Maio/2026","2026-06":"Junho/2026","2026-07":"Julho/2026","2026-08":"Agosto/2026","2026-09":"Setembro/2026","2026-10":"Outubro/2026","2026-11":"Novembro/2026","2026-12":"Dezembro/2026"};
+
+// ── Carrega dados.json ────────────────────────────────────────
+fetch("dados.json")
+  .then(function(r){ if(!r.ok) throw new Error("dados.json nao encontrado"); return r.json(); })
+  .then(function(data){
+    ROWS = data.rows;
+    HIER = data.hier;
+    document.getElementById("subtitulo").textContent = "Fonte: Odoo XML-RPC \u00b7 Gerado em " + data.gerado_em;
+    document.getElementById("badge").textContent = "\u2713 Odoo conectado";
+    document.getElementById("loading").style.display = "none";
+    document.getElementById("app").style.display = "";
+    initFiltros();
+    render();
+  })
+  .catch(function(err){
+    document.getElementById("loading").textContent = "Erro ao carregar dados.json: " + err.message;
+    document.getElementById("badge").textContent = "Erro ao carregar";
+    document.getElementById("badge").className = "badge err";
+  });
+
+// ── Utilitários ───────────────────────────────────────────────
+function fmt(n){ return Math.round(n).toLocaleString("pt-BR"); }
+function pct(n,t){ return t ? (n/t*100).toFixed(1)+"%" : "0%"; }
+function pad(n){ return String(n).padStart(2,"0"); }
+
+function count(rows,idx){
+  var m={};
+  rows.forEach(function(r){ var k=r[idx]||"N/A"; m[k]=(m[k]||0)+1; });
+  return m;
+}
+
+function bars(el,entries,colorFn,lblW){
+  var max = entries.length ? entries[0][1] : 1;
+  el.innerHTML = entries.map(function(e){
+    var l=e[0], v=e[1], w=Math.round(v/max*100);
+    return "<div class='brow'><span class='blbl' style='width:"+(lblW||180)+"px' title='"+l+"'>"+l+"</span>"
+         + "<div class='btrack'><div class='bfill' style='width:"+w+"%;background:"+colorFn(l)+"'></div></div>"
+         + "<span class='bval'>"+fmt(v)+"</span></div>";
+  }).join("");
+}
+
+// ── Filtros em cascata ────────────────────────────────────────
+function getRows(){
+  var g=document.getElementById("fGrupo").value;
+  var p=document.getElementById("fProjeto").value;
+  var c=document.getElementById("fCarteira").value;
+  var m=document.getElementById("fMes").value;
+  return ROWS.filter(function(r){
+    return (!g||r[0]===g)&&(!p||r[1]===p)&&(!c||r[2]===c)&&(!m||r[10]===m);
+  });
+}
+
+function mergeHier(){
+  var out={};
+  Object.values(HIER).forEach(function(h){ Object.keys(h).forEach(function(k){ out[k]=h[k]; }); });
+  return out;
+}
+
+function onGrupo(){
+  var g=document.getElementById("fGrupo").value;
+  var ps=document.getElementById("fProjeto");
+  var cs=document.getElementById("fCarteira");
+  ps.innerHTML="<option value=''>Todos os projetos</option>";
+  cs.innerHTML="<option value=''>Todas as carteiras</option>";
+  var src=g&&HIER[g]?HIER[g]:mergeHier();
+  Object.keys(src).sort().forEach(function(p){ ps.innerHTML+="<option value='"+p+"'>"+p+"</option>"; });
+  var allC=new Set();
+  Object.values(src).forEach(function(arr){ arr.forEach(function(c){ allC.add(c); }); });
+  Array.from(allC).sort().forEach(function(c){ cs.innerHTML+="<option value='"+c+"'>"+c+"</option>"; });
+  render();
+}
+
+function onProjeto(){
+  var g=document.getElementById("fGrupo").value;
+  var p=document.getElementById("fProjeto").value;
+  var cs=document.getElementById("fCarteira");
+  cs.innerHTML="<option value=''>Todas as carteiras</option>";
+  var carts=new Set();
+  if(p){ Object.values(HIER).forEach(function(h){ if(h[p]) h[p].forEach(function(c){ carts.add(c); }); }); }
+  else { var src=g&&HIER[g]?HIER[g]:mergeHier(); Object.values(src).forEach(function(arr){ arr.forEach(function(c){ carts.add(c); }); }); }
+  Array.from(carts).sort().forEach(function(c){ cs.innerHTML+="<option value='"+c+"'>"+c+"</option>"; });
+  render();
+}
+
+function setObjTab(n,btn){
+  objTop=n;
+  document.querySelectorAll(".tabs .tab").forEach(function(t){ t.className="tab"; });
+  btn.className="tab on";
+  render();
+}
+
+function initFiltros(){
+  var gs=document.getElementById("fGrupo");
+  Array.from(new Set(ROWS.map(function(r){return r[0];}))).filter(function(g){return g&&g!=="N/A";}).sort()
+    .forEach(function(g){ gs.innerHTML+="<option value='"+g+"'>"+g+"</option>"; });
+  var ps=document.getElementById("fProjeto");
+  Array.from(new Set(ROWS.map(function(r){return r[1];}))).filter(function(p){return p&&p!=="N/A";}).sort()
+    .forEach(function(p){ ps.innerHTML+="<option value='"+p+"'>"+p+"</option>"; });
+  var cs=document.getElementById("fCarteira");
+  Array.from(new Set(ROWS.map(function(r){return r[2];}))).sort()
+    .forEach(function(c){ cs.innerHTML+="<option value='"+c+"'>"+c+"</option>"; });
+  var ms=document.getElementById("fMes");
+  Array.from(new Set(ROWS.map(function(r){return r[10];}))).filter(function(k){return k;}).sort()
+    .forEach(function(m){ ms.innerHTML+="<option value='"+m+"'>"+(MES_NOMES[m]||m)+"</option>"; });
+}
+
+// ── Render principal ──────────────────────────────────────────
+function render(){
+  var rows=getRows(), total=rows.length;
+
+  document.getElementById("mTot").textContent=fmt(total);
+  document.getElementById("mTotSub").textContent="casos no periodo";
+
+  // Médias por período
+  var diasMap=count(rows,8), semsMap=count(rows,9), mesMap=count(rows,10), anoMap=count(rows,11);
+  var nD=Object.keys(diasMap).filter(function(k){return k;}).length||1;
+  var nS=Object.keys(semsMap).filter(function(k){return k;}).length||1;
+  var nM=Object.keys(mesMap).filter(function(k){return k;}).length||1;
+  var nA=Object.keys(anoMap).filter(function(k){return k;}).length||1;
+  document.getElementById("pDia").textContent=fmt(Math.round(total/nD));
+  document.getElementById("pDiaSub").textContent=nD+" dias uteis";
+  document.getElementById("pSem").textContent=fmt(Math.round(total/nS));
+  document.getElementById("pSemSub").textContent=nS+" semanas";
+  document.getElementById("pMes").textContent=fmt(Math.round(total/nM));
+  document.getElementById("pMesSub").textContent=nM+" "+(nM===1?"mes":"meses");
+  document.getElementById("pAno").textContent=fmt(Math.round(total/nA));
+  document.getElementById("pAnoSub").textContent="media anual";
+
+  // Hoje / semana atual / mes atual
+  var today=new Date();
+  var todayStr=today.getFullYear()+"-"+pad(today.getMonth()+1)+"-"+pad(today.getDate());
+  var thisMonth=today.getFullYear()+"-"+pad(today.getMonth()+1);
+  function isoWeek(dstr){ var d=new Date(dstr); var j=new Date(d.getFullYear(),0,1); var w=Math.ceil(((d-j)/86400000+j.getDay()+1)/7); return d.getFullYear()+"-W"+pad(w); }
+  var todayWk=isoWeek(todayStr);
+  var cH=0,cS=0,cM=0;
+  rows.forEach(function(r){ if(r[8]===todayStr)cH++; if(r[9]===todayWk)cS++; if(r[10]===thisMonth)cM++; });
+  var ulDia=Object.keys(diasMap).filter(function(k){return k;}).sort().slice(-1)[0]||"";
+  var ulSem=Object.keys(semsMap).filter(function(k){return k;}).sort().slice(-1)[0]||"";
+  var ulMes=Object.keys(mesMap).filter(function(k){return k;}).sort().slice(-1)[0]||"";
+  if(!cH&&ulDia) cH=diasMap[ulDia]||0;
+  if(!cS&&ulSem) cS=semsMap[ulSem]||0;
+  if(!cM&&ulMes) cM=mesMap[ulMes]||0;
+  document.getElementById("cHoje").textContent=fmt(cH);
+  document.getElementById("cHojeSub").textContent=diasMap[todayStr]?"hoje":"ultimo: "+ulDia;
+  document.getElementById("cSemana").textContent=fmt(cS);
+  document.getElementById("cSemanaSub").textContent=semsMap[todayWk]?"semana atual":"ultima: "+ulSem;
+  document.getElementById("cMesAtual").textContent=fmt(cM);
+  document.getElementById("cMesAtualSub").textContent=mesMap[thisMonth]?"mes atual":"ultimo: "+ulMes;
+
+  // Grafico criados por dia do mes vigente
+  (function(){
+    var today = new Date();
+    var mesAtual = today.getFullYear()+"-"+pad(today.getMonth()+1);
+    var MN = {"2026-01":"Janeiro/2026","2026-02":"Fevereiro/2026","2026-03":"Marco/2026","2026-04":"Abril/2026","2026-05":"Maio/2026","2026-06":"Junho/2026","2026-07":"Julho/2026","2026-08":"Agosto/2026","2026-09":"Setembro/2026","2026-10":"Outubro/2026","2026-11":"Novembro/2026","2026-12":"Dezembro/2026"};
+
+    // usa mes atual se tiver dados, senao ultimo disponivel
+    var todosMeses = Object.keys(mesMap).filter(function(k){return k;}).sort();
+    var mesRef = mesMap[mesAtual] ? mesAtual : (todosMeses[todosMeses.length-1]||mesAtual);
+
+    // filtra dias do mes de referencia
+    var diasMes = {};
+    rows.forEach(function(r){ if(r[10]===mesRef && r[8]) diasMes[r[8]]=(diasMes[r[8]]||0)+1; });
+    var labels = Object.keys(diasMes).sort();
+    var data = labels.map(function(d){ return diasMes[d]; });
+
+    // data no formato dd/mm/aa
+    var labelsFormatados = labels.map(function(d){
+      return d.slice(8)+"/"+d.slice(5,7)+"/"+d.slice(2,4);
+    });
+
+    document.getElementById("grafMesLabel").textContent = MN[mesRef]||mesRef;
+
+    if(window._diaMesChart) window._diaMesChart.destroy();
+    window._diaMesChart = new Chart(document.getElementById("cDiaMes"),{
+      type:"bar",
+      data:{
+        labels: labelsFormatados,
+        datasets:[{
+          data: data,
+          backgroundColor: data.map(function(v,i){
+            return i===data.length-1?"#185FA5":"#85B7EB";
+          }),
+          borderRadius: 3,
+          borderSkipped: false
+        }]
+      },
+      options:{
+        responsive:true,
+        maintainAspectRatio:false,
+        plugins:{
+          legend:{display:false},
+          tooltip:{callbacks:{
+            title:function(ctx){ return labelsFormatados[ctx[0].dataIndex]; },
+            label:function(ctx){ return " "+fmt(ctx.raw)+" casos"; }
+          }}
+        },
+        layout:{padding:{top:20}},
+        scales:{
+          x:{grid:{display:false},ticks:{font:{size:10},autoSkip:false,maxRotation:45}},
+          y:{beginAtZero:true,grid:{color:"rgba(0,0,0,0.05)"},ticks:{font:{size:11}}}
+        },
+        animation:{
+          onComplete:function(e){
+            var chart=e.chart;
+            var meta=chart.getDatasetMeta(0);
+            var c=chart.ctx;
+            c.save();
+            c.font="500 11px -apple-system,sans-serif";
+            c.textAlign="center";
+            c.textBaseline="bottom";
+            meta.data.forEach(function(bar,i){
+              if(!data[i]) return;
+              c.fillStyle=i===data.length-1?"#0C447C":"#185FA5";
+              c.fillText(fmt(data[i]),bar.x,bar.y-3);
+            });
+            c.restore();
+          }
+        }
+      }
+    });
+  })();
+
+  // Analise comparativa
+  (function(){
+    var today = new Date();
+    var mesAtual = today.getFullYear()+"-"+pad(today.getMonth()+1);
+    var MN = {"2026-01":"Jan/26","2026-02":"Fev/26","2026-03":"Mar/26","2026-04":"Abr/26","2026-05":"Mai/26","2026-06":"Jun/26","2026-07":"Jul/26","2026-08":"Ago/26","2026-09":"Set/26","2026-10":"Out/26","2026-11":"Nov/26","2026-12":"Dez/26"};
+
+    var todosMeses = Object.keys(mesMap).filter(function(k){return k;}).sort();
+    if(todosMeses.length === 0) return;
+
+    // separa mes vigente dos anteriores completos
+    var mesesAnt = todosMeses.filter(function(m){ return m < mesAtual; });
+    var temMesAtual = !!mesMap[mesAtual];
+
+    // media de dias uteis por mes (para normalizar ritmo)
+    function diasDoMes(ym){
+      return Object.keys(diasMap).filter(function(d){ return d && d.slice(0,7)===ym; }).length || 1;
+    }
+    function semanasDoMes(ym){
+      return Object.keys(semsMap).filter(function(s){ return s && rows.some(function(r){ return r[9]===s && r[10]===ym; }) }).length || 1;
+    }
+
+    // ── MES VIGENTE: compara ritmo diario com media diaria dos anteriores ──
+    var linhas = [];
+    if(temMesAtual && mesesAnt.length > 0){
+      var qtdAtual = mesMap[mesAtual];
+      var diasAtual = diasDoMes(mesAtual);
+      var ritmoAtual = qtdAtual / diasAtual;
+
+      var mediaRitmoDia = mesesAnt.reduce(function(acc,m){
+        return acc + (mesMap[m]||0) / diasDoMes(m);
+      }, 0) / mesesAnt.length;
+
+      var diffD = mediaRitmoDia > 0 ? ((ritmoAtual - mediaRitmoDia) / mediaRitmoDia * 100) : 0;
+      var badgeD = diffD >= -10 && diffD <= 15 ? "badge-ok" : diffD < -10 ? "badge-low" : "badge-high";
+      var labelD = diffD >= -10 && diffD <= 15 ? "dentro da media" : diffD < -10 ? "abaixo da media" : "acima da media";
+      var sinalD = (diffD>=0?"+":"")+diffD.toFixed(1)+"%";
+      var barD = mediaRitmoDia > 0 ? Math.min(Math.round(ritmoAtual/mediaRitmoDia*100),140) : 0;
+      var corD = badgeD==="badge-ok"?"#1D9E75":badgeD==="badge-low"?"#EF9F27":"#D85A30";
+
+      linhas.push({
+        titulo: MN[mesAtual]||mesAtual,
+        subtitulo: "mes vigente · ritmo: "+fmt(Math.round(ritmoAtual))+" casos/dia · media historica: "+fmt(Math.round(mediaRitmoDia))+"/dia",
+        val: fmt(qtdAtual),
+        badge: labelD+" ("+sinalD+")",
+        badgeClass: badgeD,
+        barW: barD,
+        barColor: corD
+      });
+    }
+
+    // ── MESES ANTERIORES: compara total do mes com media geral dos meses ──
+    if(mesesAnt.length > 0){
+      var mediaGeral = mesesAnt.reduce(function(acc,m){ return acc+(mesMap[m]||0); },0) / mesesAnt.length;
+      mesesAnt.forEach(function(m){
+        var qtd = mesMap[m] || 0;
+        var diff = mediaGeral > 0 ? ((qtd - mediaGeral) / mediaGeral * 100) : 0;
+        var badge = diff >= -10 && diff <= 15 ? "badge-ok" : diff < -10 ? "badge-low" : "badge-high";
+        var label = diff >= -10 && diff <= 15 ? "dentro da media" : diff < -10 ? "abaixo da media" : "acima da media";
+        var sinal = (diff>=0?"+":"")+diff.toFixed(1)+"%";
+        var barW = mediaGeral > 0 ? Math.min(Math.round(qtd/mediaGeral*100),140) : 0;
+        var cor = badge==="badge-ok"?"#1D9E75":badge==="badge-low"?"#EF9F27":"#D85A30";
+        linhas.push({
+          titulo: MN[m]||m,
+          subtitulo: "mes completo · media geral: "+fmt(Math.round(mediaGeral))+" casos/mes",
+          val: fmt(qtd),
+          badge: label+" ("+sinal+")",
+          badgeClass: badge,
+          barW: barW,
+          barColor: cor
+        });
+      });
+    }
+
+    // renderiza linhas no card
+    var el = document.getElementById("anLinhas");
+    if(!el) return;
+    el.innerHTML = linhas.map(function(l){
+      return "<div style='display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:10px 0;border-bottom:0.5px solid rgba(0,0,0,.06);'>"
+        +"<div style='min-width:160px;flex:1;'>"
+        +"<div style='font-size:13px;font-weight:500;color:#1a1a18;'>"+l.titulo+"</div>"
+        +"<div style='font-size:11px;color:#888780;margin-top:2px;'>"+l.subtitulo+"</div>"
+        +"<div style='height:5px;background:#f1efe8;border-radius:3px;margin-top:6px;overflow:hidden;'>"
+        +"<div style='height:100%;width:"+l.barW+"%;background:"+l.barColor+";border-radius:3px;'></div></div>"
+        +"</div>"
+        +"<div style='display:flex;align-items:center;gap:12px;'>"
+        +"<div style='font-size:20px;font-weight:500;color:#1a1a18;text-align:right;'>"+l.val+"</div>"
+        +"<span class='analise-badge "+l.badgeClass+"'>"+l.badge+"</span>"
+        +"</div>"
+        +"</div>";
+    }).join("");
+  })();
+
+  // Grupos e UFs
+  bars(document.getElementById("bProjeto"),Object.entries(count(rows,1)).sort(function(a,b){return b[1]-a[1];}),function(){return "#378ADD";},200);
+  bars(document.getElementById("bUF"),Object.entries(count(rows,7)).filter(function(e){return e[0]!=="N/A";}).sort(function(a,b){return b[1]-a[1];}).slice(0,10),function(){return "#85B7EB";},60);
+
+  // Objetos
+  bars(document.getElementById("bObj"),Object.entries(count(rows,6)).sort(function(a,b){return b[1]-a[1];}).slice(0,objTop===9999?99999:objTop),function(){return "#7F77DD";},200);
+}
+</script>
+</body>
+</html>
